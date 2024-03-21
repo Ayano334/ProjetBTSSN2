@@ -1,4 +1,3 @@
-
 #include <Arduino.h>
 #include <Wire.h>
 #include <SensirionI2CSgp40.h>
@@ -6,32 +5,37 @@
 #include <Adafruit_BME280.h>
 #include <VOCGasIndexAlgorithm.h>
 
+// Déclaration des variables et des objets pour les capteurs
 float sampling_interval = 1.f;
 SensirionI2CSgp40 sgp40;
 SensirionI2CSfa3x sfa3x;
 Adafruit_BME280 bme;
 VOCGasIndexAlgorithm voc_algorithm(sampling_interval);
-float Temp;
-int Ald;
-float Hum;
+float Temp;  // Température
+int Alde;      // Formaldéhyde
+float Hum;    // Humidité
 
-// Fonction pour mesurer la valeur brute du signal SGP40 en mode faible consommation
+// Déclaration de la fonction pour mesurer la valeur brute du signal SGP40 en mode faible consommation
 void sgp40MeasureRawSignalLowPower(uint16_t compensationRh, uint16_t compensationT, uint16_t* error, int32_t voc_index);
 
 void setup() {
+    // Initialisation de la communication série
     Serial.begin(115200);
+
+    // Attente que la communication série soit disponible
     while (!Serial) {
         delay(100);
     }
+
+    // Initialisation de la communication I2C
     Wire.begin();
 
     // Initialisation du capteur SGP40
     sgp40.begin(Wire);
 
+    // Récupération du numéro de série du capteur SGP40
     uint16_t serialNumber[3];
     uint8_t serialNumberSize = 3;
-
-    // Obtention du numéro de série du capteur SGP40
     uint16_t error = sgp40.getSerialNumber(serialNumber, serialNumberSize);
     Serial.print("Sampling interval (sec):\t");
     Serial.println(voc_algorithm.get_sampling_interval());
@@ -84,7 +88,7 @@ void loop() {
     uint16_t error;
     char errorMessage[256];
     uint16_t compensationRh = 0x8000;  // Valeur de compensation à ajuster
-    uint16_t compensationT = 0x6666;   // Valeur de compensation à ajuster
+    uint16_t compensationT = 0x6666;    // Valeur de compensation à ajuster
     int32_t voc_index = 0;
 
     // Appel de la fonction pour mesurer la valeur brute du signal SGP40
@@ -92,17 +96,17 @@ void loop() {
 
     // Mesure des valeurs SFA3x
     delay(1000);
-    int16_t hcho;
-    int16_t humidity;
+    int16_t hcho;      // Formaldéhyde
+    int16_t humidity;  // Humidité
     int16_t temperature;
     error = sfa3x.readMeasuredValues(hcho, humidity, temperature);
     if (error) {
         Serial.print("Error trying to execute readMeasuredValues(): ");
         // Gérer l'erreur si nécessaire
     } else {
-        Ald = hcho / 5.0;
+        Alde = hcho / 5.0;
         Serial.print("Hcho:");
-        Serial.print(Ald);
+        Serial.print(Alde);
         Serial.println("\t");
     }
 

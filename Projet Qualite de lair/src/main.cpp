@@ -17,19 +17,14 @@ float Hum;    // Humidité
 
 // Déclaration de la fonction pour mesurer la valeur brute du signal SGP40 en mode faible consommation
 void sgp40MeasureRawSignalLowPower(uint16_t compensationRh, uint16_t compensationT, uint16_t* error, int32_t voc_index);
-
-void setup() {
-    // Initialisation de la communication série
-    Serial.begin(115200);
-
-    // Attente que la communication série soit disponible
-    while (!Serial) {
-        delay(100);
+void initcapteurT(){
+    // Initialisation du capteur BME280
+    if (!bme.begin(0x76)) {
+        Serial.println("Could not find a valid BME280 sensor, check wiring!");
+        while (1);
     }
-
-    // Initialisation de la communication I2C
-    Wire.begin();
-
+}
+void initcapteurC(){
     // Initialisation du capteur SGP40
     sgp40.begin(Wire);
 
@@ -66,25 +61,35 @@ void setup() {
         Serial.println(testResult, HEX);
     }
 
-    // Initialisation du capteur SFA3x
-    sfa3x.begin(Wire);
+}
+void initcapteurF(){
+   sfa3x.begin(Wire);
 
     // Démarrage de la mesure continue avec SFA3x
-    error = sfa3x.startContinuousMeasurement();
+    int error = sfa3x.startContinuousMeasurement();
     if (error) {
         Serial.print("Error trying to execute startContinuousMeasurement(): ");
         // Gérer l'erreur si nécessaire
     }
-
-    // Initialisation du capteur BME280
-    if (!bme.begin(0x76)) {
-        Serial.println("Could not find a valid BME280 sensor, check wiring!");
-        while (1);
-    }
 }
 
-void loop() {
-    // Mesure de la valeur brute du signal SGP40 en mode faible consommation
+void setup() {
+    // Initialisation de la communication série
+    Serial.begin(115200);
+    // Attente que la communication série soit disponible
+    while (!Serial) {
+        delay(100);
+    }
+    // Initialisation de la communication I2C
+    Wire.begin();
+    initcapteurC();
+    initcapteurT();
+    initcapteurF();
+
+}
+
+void capteurTFC() {
+ // Mesure de la valeur brute du signal SGP40 en mode faible consommation
     uint16_t error;
     char errorMessage[256];
     uint16_t compensationRh = 0x8000;  // Valeur de compensation à ajuster
@@ -123,6 +128,10 @@ void loop() {
     Serial.print(Hum);
     Serial.println(" %");
 
+
+}
+void loop() {
+    capteurTFC();
     delay(2000);  // Attendre 2 secondes entre chaque lecture
 }
 

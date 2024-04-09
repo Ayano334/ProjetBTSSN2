@@ -88,32 +88,7 @@ void setup() {
 
 }
 
-void capteurTFC() {
- // Mesure de la valeur brute du signal SGP40 en mode faible consommation
-    uint16_t error;
-    char errorMessage[256];
-    uint16_t compensationRh = 0x8000;  // Valeur de compensation à ajuster
-    uint16_t compensationT = 0x6666;    // Valeur de compensation à ajuster
-    int32_t voc_index = 0;
-
-    // Appel de la fonction pour mesurer la valeur brute du signal SGP40
-    sgp40MeasureRawSignalLowPower(compensationRh, compensationT, &error, voc_index);
-
-    // Mesure des valeurs SFA3x
-    delay(1000);
-    int16_t hcho;      // Formaldéhyde
-    int16_t humidity;  // Humidité
-    int16_t temperature;
-    error = sfa3x.readMeasuredValues(hcho, humidity, temperature);
-    if (error) {
-        Serial.print("Error trying to execute readMeasuredValues(): ");
-        // Gérer l'erreur si nécessaire
-    } else {
-        Alde = hcho / 5.0;
-        Serial.print("Hcho:");
-        Serial.print(Alde);
-        Serial.println("\t");
-    }
+void capteurT() {
 
     // Mesure des valeurs BME280
     Serial.println("\t");
@@ -130,8 +105,40 @@ void capteurTFC() {
 
 
 }
+void capteurF() {
+    // Mesure des valeurs SFA3x
+    delay(1000);
+    int16_t hcho;      // Formaldéhyde
+    int16_t humidity;  // Humidité
+    int16_t temperature;
+    int error = sfa3x.readMeasuredValues(hcho, humidity, temperature);
+    if (error) {
+        Serial.print("Error trying to execute readMeasuredValues(): ");
+        // Gérer l'erreur si nécessaire
+    } else {
+        Alde = hcho / 5.0;
+        Serial.print("Hcho:");
+        Serial.print(Alde);
+        Serial.println("\t");
+    }
+}
+
+void capteurC(){
+    // Mesure de la valeur brute du signal SGP40 en mode faible consommation
+    uint16_t error;
+    char errorMessage[256];
+    uint16_t compensationRh = 0x8000;  // Valeur de compensation à ajuster
+    uint16_t compensationT = 0x6666;    // Valeur de compensation à ajuster
+    int32_t voc_index = 0;
+
+    // Appel de la fonction pour mesurer la valeur brute du signal SGP40
+    sgp40MeasureRawSignalLowPower(compensationRh, compensationT, &error, voc_index);
+}
+
 void loop() {
-    capteurTFC();
+    capteurT();
+    capteurC();
+    capteurF();
     delay(2000);  // Attendre 2 secondes entre chaque lecture
 }
 

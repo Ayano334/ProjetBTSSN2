@@ -4,6 +4,9 @@
 #include <SensirionI2CSfa3x.h>
 #include <Adafruit_BME280.h>
 #include <VOCGasIndexAlgorithm.h>
+#include <BLEDevice.h>
+#include <BLEUtils.h>
+#include <BLEServer.h>
 
 // Déclaration des variables et des objets pour les capteurs
 float sampling_interval = 1.f;
@@ -15,63 +18,22 @@ float Temp;  // Température
 int Alde;      // Formaldéhyde
 float Hum;    // Humidité
 
+// Déclaration des UUID pour le service BLE et les caractéristiques
+#define SERVICE_UUID        "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
+#define TEMPERATURE_UUID    "beb5483e-36e1-4688-b7f5-ea07361b26a8"
+#define HUMIDITY_UUID       "beb5483e-36e1-4688-b7f5-ea07361b26a9"
+#define ALDEHYDE_UUID       "beb5483e-36e1-4688-b7f5-ea07361b26aa"
+
+BLEServer* pServer;
+BLEService* pService;
+BLECharacteristic* pCharacteristicTemperature;
+BLECharacteristic* pCharacteristicHumidity;
+BLECharacteristic* pCharacteristicAldehyde;
+
 // Déclaration de la fonction pour mesurer la valeur brute du signal SGP40 en mode faible consommation
 void sgp40MeasureRawSignalLowPower(uint16_t compensationRh, uint16_t compensationT, uint16_t* error, int32_t voc_index);
-void initcapteurT(){
-    // Initialisation du capteur BME280
-    if (!bme.begin(0x76)) {
-        Serial.println("Could not find a valid BME280 sensor, check wiring!");
-        while (1);
-    }
-}
-void initcapteurC(){
-    // Initialisation du capteur SGP40
-    sgp40.begin(Wire);
-
-    // Récupération du numéro de série du capteur SGP40
-    uint16_t serialNumber[3];
-    uint8_t serialNumberSize = 3;
-    uint16_t error = sgp40.getSerialNumber(serialNumber, serialNumberSize);
-    Serial.print("Sampling interval (sec):\t");
-    Serial.println(voc_algorithm.get_sampling_interval());
-    Serial.println("");
-
-    if (error) {
-        Serial.print("Error trying to execute getSerialNumber(): ");
-        // Gérer l'erreur si nécessaire
-    } else {
-        Serial.print("SerialNumber: ");
-        for (size_t i = 0; i < serialNumberSize; i++) {
-            Serial.print("0x");
-            Serial.print(serialNumber[i], HEX);
-            Serial.print(" ");
-        }
-        Serial.println();
-    }
-
-    uint16_t testResult;
-
-    // Test d'auto-étalonnage du capteur SGP40
-    error = sgp40.executeSelfTest(testResult);
-    if (error) {
-        Serial.print("Error trying to execute executeSelfTest(): ");
-        // Gérer l'erreur si nécessaire
-    } else if (testResult != 0xD400) {
-        Serial.print("executeSelfTest failed with error: ");
-        Serial.println(testResult, HEX);
-    }
-
-}
-void initcapteurF(){
-   sfa3x.begin(Wire);
-
-    // Démarrage de la mesure continue avec SFA3x
-    int error = sfa3x.startContinuousMeasurement();
-    if (error) {
-        Serial.print("Error trying to execute startContinuousMeasurement(): ");
-        // Gérer l'erreur si nécessaire
-    }
-}
+void initSensors();
+void measureSensors();
 
 void setup() {
     // Initialisation de la communication série
@@ -82,98 +44,88 @@ void setup() {
     }
     // Initialisation de la communication I2C
     Wire.begin();
-    initcapteurC();
-    initcapteurT();
-    initcapteurF();
-
+    // Initialisation du BLE
+    BLEDevice::init("ESP32_BLE_Sensors");
+    pServer = BLEDevice::createServer();
+    pService = pServer->createService(BLEUUID(SERVICE_UUID));
+    // Création des caractéristiques BLE
+    pCharacteristicTemperature = pService->createCharacteristic(BLEUUID(TEMPERATURE_UUID), BLECharacteristic::PROPERTY_READ);
+    pCharacteristicHumidity = pService->createCharacteristic(BLEUUID(HUMIDITY_UUID), BLECharacteristic::PROPERTY_READ);
+    pCharacteristicAldehyde = pService->createCharacteristic(BLEUUID(ALDEHYDE_UUID), BLECharacteristic::PROPERTY_READ);
+    pCharacteristicTemperature->setValue("0.00");
+    pCharacteristicHumidity->setValue("0.00");
+    pCharacteristicAldehyde->setValue("0.00");
+    // Démarre le service BLE
+    pService->start();
+    // Démarre l'annonce BLE
+    pServer->getAdvertising()->start();
+    // Initialise les capteurs
+    initSensors();
 }
 
-void capteurT() {
-
-    // Mesure des valeurs BME280
-    Serial.println("\t");
-    Serial.println("\t");
-    Temp = bme.readTemperature();
-    Serial.print("Temperature = ");
-    Serial.print(Temp);
-    Serial.println(" °C");
-
-    Hum = bme.readHumidity();
-    Serial.print("Humidité = ");
-    Serial.print(Hum);
-    Serial.println(" %");
-
-
-}
-void capteurF() {
-    // Mesure des valeurs SFA3x
-    delay(1000);
-    int16_t hcho;      // Formaldéhyde
-    int16_t humidity;  // Humidité
-    int16_t temperature;
-    int error = sfa3x.readMeasuredValues(hcho, humidity, temperature);
+void initSensors(){
+    // Initialisation du capteur BME280
+    if (!bme.begin(0x76)) {
+        Serial.println("Could not find a valid BME280 sensor, check wiring!");
+        while (1);
+    }
+    // Initialisation du capteur SGP40
+    sgp40.begin(Wire);
+    // Initialisation du capteur SFA3x
+    sfa3x.begin(Wire);
+    // Démarrage de la mesure continue avec SFA3x
+    int error = sfa3x.startContinuousMeasurement();
     if (error) {
-        Serial.print("Error trying to execute readMeasuredValues(): ");
+        Serial.print("Error trying to execute startContinuousMeasurement(): ");
         // Gérer l'erreur si nécessaire
-    } else {
-        Alde = hcho / 5.0;
-        Serial.print("Hcho:");
-        Serial.print(Alde);
-        Serial.println("\t");
     }
 }
 
-void capteurC(){
+void loop() {
+    // Mesure des valeurs des capteurs
+    measureSensors();
+    // Attente avant la prochaine mesure
+    delay(2000);
+}
+
+void measureSensors() {
+    // Mesure de la température et de l'humidité avec le capteur BME280
+    Temp = bme.readTemperature();
+    Hum = bme.readHumidity();
     // Mesure de la valeur brute du signal SGP40 en mode faible consommation
     uint16_t error;
     char errorMessage[256];
     uint16_t compensationRh = 0x8000;  // Valeur de compensation à ajuster
     uint16_t compensationT = 0x6666;    // Valeur de compensation à ajuster
     int32_t voc_index = 0;
-
-    // Appel de la fonction pour mesurer la valeur brute du signal SGP40
     sgp40MeasureRawSignalLowPower(compensationRh, compensationT, &error, voc_index);
-}
-
-void loop() {
-    capteurT();
-    capteurC();
-    capteurF();
-    delay(2000);  // Attendre 2 secondes entre chaque lecture
+    // Mise à jour des valeurs des caractéristiques BLE
+    pCharacteristicTemperature->setValue(String(Temp).c_str());
+    pCharacteristicHumidity->setValue(String(Hum).c_str());
+    pCharacteristicAldehyde->setValue(String(Alde).c_str());
 }
 
 // Fonction pour mesurer la valeur brute du signal SGP40 en mode faible consommation
 void sgp40MeasureRawSignalLowPower(uint16_t compensationRh, uint16_t compensationT, uint16_t* error, int32_t voc_index) {
     uint16_t srawVoc = 0;
-
     // Demande d'une première mesure pour chauffer la plaque (ignorant le résultat)
     *error = sgp40.measureRawSignal(compensationRh, compensationT, srawVoc);
     if (*error) {
         return;
     }
-
-    // Délai de 170 ms pour laisser la plaque chauffer.
-    // En gardant à l'esprit que la commande de mesure inclut déjà un délai de 30 ms
-    delay(140);
-
+    // Délai pour laisser la plaque chauffer
+    delay(170);
     // Demande des valeurs de mesure
     *error = sgp40.measureRawSignal(compensationRh, compensationT, srawVoc);
     if (*error) {
         return;
     }
-
-    Serial.print("srawVOC: ");
-    Serial.println(srawVoc);
-
     // Désactiver le chauffage
     *error = sgp40.turnHeaterOff();
     if (*error) {
         return;
     }
-
-    // Traitement des signaux bruts par l'algorithme d'indice de gaz VOC pour obtenir les valeurs de l'indice VOC
+    // Traitement des signaux bruts par l'algorithme d'indice de gaz VOC
     voc_index = voc_algorithm.process(srawVoc);
-    int COV = voc_index;
-    Serial.print("COV Indice: ");
-    Serial.println(COV);
+    Alde = voc_index;
 }

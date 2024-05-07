@@ -23,12 +23,16 @@ float Hum;    // Humidité
 #define TEMPERATURE_UUID    "beb5483e-36e1-4688-b7f5-ea07361b26a8"
 #define HUMIDITY_UUID       "beb5483e-36e1-4688-b7f5-ea07361b26a9"
 #define ALDEHYDE_UUID       "beb5483e-36e1-4688-b7f5-ea07361b26aa"
+#define VOC_INDEX_UUID      "beb5483e-36e1-4688-b7f5-ea07361b26ab"
+
 
 BLEServer* pServer;
 BLEService* pService;
 BLECharacteristic* pCharacteristicTemperature;
 BLECharacteristic* pCharacteristicHumidity;
 BLECharacteristic* pCharacteristicAldehyde;
+BLECharacteristic* pCharacteristicVOCIndex;
+
 
 // Déclaration de la fonction pour mesurer la valeur brute du signal SGP40 en mode faible consommation
 void sgp40MeasureRawSignalLowPower(uint16_t compensationRh, uint16_t compensationT, uint16_t* error, int32_t voc_index);
@@ -52,9 +56,12 @@ void setup() {
     pCharacteristicTemperature = pService->createCharacteristic(BLEUUID(TEMPERATURE_UUID), BLECharacteristic::PROPERTY_READ);
     pCharacteristicHumidity = pService->createCharacteristic(BLEUUID(HUMIDITY_UUID), BLECharacteristic::PROPERTY_READ);
     pCharacteristicAldehyde = pService->createCharacteristic(BLEUUID(ALDEHYDE_UUID), BLECharacteristic::PROPERTY_READ);
+    pCharacteristicVOCIndex = pService->createCharacteristic(BLEUUID(VOC_INDEX_UUID), BLECharacteristic::PROPERTY_READ);
+    pCharacteristicVOCIndex->setValue("0");
     pCharacteristicTemperature->setValue("0.00");
     pCharacteristicHumidity->setValue("0.00");
     pCharacteristicAldehyde->setValue("0.00");
+    
     // Démarre le service BLE
     pService->start();
     // Démarre l'annonce BLE
@@ -103,6 +110,8 @@ void measureSensors() {
     pCharacteristicTemperature->setValue(String(Temp).c_str());
     pCharacteristicHumidity->setValue(String(Hum).c_str());
     pCharacteristicAldehyde->setValue(String(Alde).c_str());
+    pCharacteristicVOCIndex->setValue(String(Alde).c_str());
+
 }
 
 // Fonction pour mesurer la valeur brute du signal SGP40 en mode faible consommation

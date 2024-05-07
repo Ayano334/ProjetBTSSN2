@@ -15,7 +15,7 @@ SensirionI2CSfa3x sfa3x;
 Adafruit_BME280 bme;
 VOCGasIndexAlgorithm voc_algorithm(sampling_interval);
 float Temp;  // Température
-int Alde;      // Formaldéhyde
+int Alde;     // Formaldéhyde
 float Hum;    // Humidité
 
 // Déclaration des UUID pour le service BLE et les caractéristiques
@@ -25,7 +25,6 @@ float Hum;    // Humidité
 #define ALDEHYDE_UUID       "beb5483e-36e1-4688-b7f5-ea07361b26aa"
 #define VOC_INDEX_UUID      "beb5483e-36e1-4688-b7f5-ea07361b26ab"
 
-
 BLEServer* pServer;
 BLEService* pService;
 BLECharacteristic* pCharacteristicTemperature;
@@ -33,9 +32,11 @@ BLECharacteristic* pCharacteristicHumidity;
 BLECharacteristic* pCharacteristicAldehyde;
 BLECharacteristic* pCharacteristicVOCIndex;
 
+// Déclaration de la minuterie pour contrôler l'envoi des données BLE
+unsigned long previousMillis = 0;
+const long interval = 5000;  // Interval d'envoi en millisecondes
 
-// Déclaration de la fonction pour mesurer la valeur brute du signal SGP40 en mode faible consommation
-void sgp40MeasureRawSignalLowPower(uint16_t compensationRh, uint16_t compensationT, uint16_t* error, int32_t voc_index);
+// Déclaration des fonctions
 void initSensors();
 void measureSensors();
 
@@ -89,29 +90,14 @@ void initSensors(){
 }
 
 void loop() {
-    // Mesure des valeurs des capteurs
-    measureSensors();
-    // Attente avant la prochaine mesure
-    delay(2000);
-}
-
-void measureSensors() {
-    // Mesure de la température et de l'humidité avec le capteur BME280
-    Temp = bme.readTemperature();
-    Hum = bme.readHumidity();
-    // Mesure de la valeur brute du signal SGP40 en mode faible consommation
-    uint16_t error;
-    char errorMessage[256];
-    uint16_t compensationRh = 0x8000;  // Valeur de compensation à ajuster
-    uint16_t compensationT = 0x6666;    // Valeur de compensation à ajuster
-    int32_t voc_index = 0;
-    sgp40MeasureRawSignalLowPower(compensationRh, compensationT, &error, voc_index);
-    // Mise à jour des valeurs des caractéristiques BLE
-    pCharacteristicTemperature->setValue(String(Temp).c_str());
-    pCharacteristicHumidity->setValue(String(Hum).c_str());
-    pCharacteristicAldehyde->setValue(String(Alde).c_str());
-    pCharacteristicVOCIndex->setValue(String(Alde).c_str());
-
+    unsigned long currentMillis = millis();
+    // Vérifier si l'intervalle de temps est écoulé
+    if (currentMillis - previousMillis >= interval) {
+        // Mise à jour du temps pour le prochain envoi
+        previousMillis = currentMillis;
+        // Mesure et envoi des valeurs des capteurs
+        measureSensors();
+    }
 }
 
 // Fonction pour mesurer la valeur brute du signal SGP40 en mode faible consommation
@@ -138,3 +124,22 @@ void sgp40MeasureRawSignalLowPower(uint16_t compensationRh, uint16_t compensatio
     voc_index = voc_algorithm.process(srawVoc);
     Alde = voc_index;
 }
+
+void measureSensors() {
+    // Mesure de la température et de l'humidité avec le capteur BME280
+    Temp = bme.readTemperature();
+    Hum = bme.readHumidity();
+    // Mesure de la valeur brute du signal SGP40 en mode faible consommation
+    uint16_t error;
+    char errorMessage[256];
+    uint16_t compensationRh = 0x8000;  // Valeur de compensation à ajuster
+    uint16_t compensationT = 0x6666;   // Valeur de compensation à ajuster
+    int32_t voc_index = 0;
+    sgp40MeasureRawSignalLowPower(compensationRh, compensationT, &error, voc_index);
+    // Mise à jour des valeurs des caractéristiques BLE
+    pCharacteristicTemperature->setValue(String(Temp).c_str());
+    pCharacteristicHumidity->setValue(String(Hum).c_str());
+    pCharacteristicAldehyde->setValue(String(Alde).c_str());
+    pCharacteristicVOCIndex->setValue(String(Alde).c_str());
+}
+

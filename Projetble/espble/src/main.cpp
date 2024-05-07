@@ -101,7 +101,7 @@ void loop() {
 }
 
 // Fonction pour mesurer la valeur brute du signal SGP40 en mode faible consommation
-void sgp40MeasureRawSignalLowPower(uint16_t compensationRh, uint16_t compensationT, uint16_t* error, int32_t voc_index) {
+void sgp40MeasureRawSignalLowPower(uint16_t compensationRh, uint16_t compensationT, uint16_t* error, int32_t voc_index, uint16_t& COV) {
     uint16_t srawVoc = 0;
     // Demande d'une première mesure pour chauffer la plaque (ignorant le résultat)
     *error = sgp40.measureRawSignal(compensationRh, compensationT, srawVoc);
@@ -122,7 +122,7 @@ void sgp40MeasureRawSignalLowPower(uint16_t compensationRh, uint16_t compensatio
     }
     // Traitement des signaux bruts par l'algorithme d'indice de gaz VOC
     voc_index = voc_algorithm.process(srawVoc);
-    Alde = voc_index;
+    COV = voc_index;
 }
 
 void measureSensors() {
@@ -135,10 +135,11 @@ void measureSensors() {
     uint16_t compensationRh = 0x8000;  // Valeur de compensation à ajuster
     uint16_t compensationT = 0x6666;   // Valeur de compensation à ajuster
     int32_t voc_index = 0;
-    sgp40MeasureRawSignalLowPower(compensationRh, compensationT, &error, voc_index);
+    uint16_t COV = 0; // Variable pour la valeur de l'indice de gaz VOC
+    sgp40MeasureRawSignalLowPower(compensationRh, compensationT, &error, voc_index, COV);
     // Mise à jour des valeurs des caractéristiques BLE
     pCharacteristicTemperature->setValue(String(Temp).c_str());
     pCharacteristicHumidity->setValue(String(Hum).c_str());
     pCharacteristicAldehyde->setValue(String(Alde).c_str());
-    pCharacteristicVOCIndex->setValue(String(Alde).c_str());
+    pCharacteristicVOCIndex->setValue(String(COV).c_str());
 }

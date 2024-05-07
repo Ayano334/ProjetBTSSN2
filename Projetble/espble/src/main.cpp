@@ -10,10 +10,10 @@
 
 // Déclaration des variables et des objets pour les capteurs
 float sampling_interval = 1.f;
-SensirionI2CSgp40 sgp40;
-SensirionI2CSfa3x sfa3x;
-Adafruit_BME280 bme;
-VOCGasIndexAlgorithm voc_algorithm(sampling_interval);
+SensirionI2CSgp40 sgp40; // Capteur de gaz SGP40
+SensirionI2CSfa3x sfa3x; // Capteur de flux d'air SFA3x
+Adafruit_BME280 bme;     // Capteur de température, d'humidité et de pression BME280
+VOCGasIndexAlgorithm voc_algorithm(sampling_interval); // Algorithme d'indice de gaz VOC
 float Temp;  // Température
 int Alde;     // Formaldéhyde
 float Hum;    // Humidité
@@ -25,12 +25,12 @@ float Hum;    // Humidité
 #define ALDEHYDE_UUID       "beb5483e-36e1-4688-b7f5-ea07361b26aa"
 #define VOC_INDEX_UUID      "beb5483e-36e1-4688-b7f5-ea07361b26ab"
 
-BLEServer* pServer;
-BLEService* pService;
-BLECharacteristic* pCharacteristicTemperature;
-BLECharacteristic* pCharacteristicHumidity;
-BLECharacteristic* pCharacteristicAldehyde;
-BLECharacteristic* pCharacteristicVOCIndex;
+BLEServer* pServer;                    // Serveur BLE
+BLEService* pService;                  // Service BLE
+BLECharacteristic* pCharacteristicTemperature; // Caractéristique BLE de température
+BLECharacteristic* pCharacteristicHumidity;    // Caractéristique BLE d'humidité
+BLECharacteristic* pCharacteristicAldehyde;    // Caractéristique BLE de formaldéhyde
+BLECharacteristic* pCharacteristicVOCIndex;    // Caractéristique BLE d'indice de gaz VOC
 
 // Déclaration de la minuterie pour contrôler l'envoi des données BLE
 unsigned long previousMillis = 0;
@@ -142,4 +142,3 @@ void measureSensors() {
     pCharacteristicAldehyde->setValue(String(Alde).c_str());
     pCharacteristicVOCIndex->setValue(String(Alde).c_str());
 }
-
